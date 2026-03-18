@@ -1,0 +1,56 @@
+pipeline {
+  agent any
+
+  environment {
+    PATH                    = "/opt/homebrew/bin:${env.PATH}"
+    TF_VAR_tenancy_ocid     = credentials('OCI_TENANCY_OCID')
+    TF_VAR_user_ocid        = credentials('OCI_USER_OCID')
+    TF_VAR_fingerprint      = credentials('OCI_FINGERPRINT')
+    TF_VAR_region           = credentials('OCI_REGION')
+    TF_VAR_compartment_ocid = credentials('OCI_COMPARTMENT_OCID')
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/alex/oci-bucket.git', branch: 'main'
+      }
+    }
+
+    stage('Terraform Init') {
+      steps {
+        sh 'terraform init'
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        withCredentials([file(credentialsId: 'OCI_PRIVATE_KEY', variable: 'OCI_KEY_FILE')]) {
+          sh 'terraform plan -var="private_key_path=$OCI_KEY_FILE"'
+        }
+      }
+    }
+
+    stage('Terraform Apply') {
+      steps {
+        withCredentials([file(credentialsId: 'OCI_PRIVATE_KEY', variable: 'OCI_KEY_FILE')]) {
+          sh 'terraform apply -auto-approve -var="private_key_path=$OCI_KEY_FILE"'
+        }
+      }
+    }
+
+  }
+
+  post {
+    success {
+      echo 'Terraform apply completed successfully.'
+    }
+    failure {
+      echo 'Pipeline failed — check the logs above for details.'
+    }
+    always {
+      cleanWs()
+    }
+  }
+}
