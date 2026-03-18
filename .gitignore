@@ -1,0 +1,6 @@
+.oci
+*.tfvars
+*.tfvars.json
+*.pem
+*.lock.hcl
+.terraform
